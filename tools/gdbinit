@@ -1,0 +1,7 @@
+# gdb set-up for `make debug` / `make debug-grub` (QEMU started with -s -S).
+set disassembly-flavor intel
+target remote localhost:1234
+# 32-bit protected mode from the kernel entry on; use `set architecture i8086` for the boot sectors.
+set architecture i386
+break kmain
+continue
