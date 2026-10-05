@@ -104,7 +104,7 @@ $(INITRD): $(BUILD)/tools/mkinitrd $(USER_ELFS) $(wildcard rootfs/*)
 # ---------------------------------------------------------------- DrakeOS bootloader disk image
 $(STAGE1): boot/stage1.asm
 	@mkdir -p $(@D)
-	$(NASM) -f bin -DSTAGE2_SECTORS=$(STAGE2_SECTORS) -o $@ $<
+	$(NASM) -f bin -Iboot/ -DSTAGE2_SECTORS=$(STAGE2_SECTORS) -o $@ $<
 
 $(STAGE2): boot/stage2.asm $(wildcard boot/*.inc) $(KERNEL_BIN)
 	@mkdir -p $(@D)
