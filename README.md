@@ -4,7 +4,11 @@ A 32-bit x86 teaching operating system: its own BIOS bootloader and GRUB support
 higher-half paging, preemptive multitasking, ring-3 programs with system calls, a VFS,
 VGA text and graphics, and drivers for the usual PC hardware, in small readable C and NASM.
 
-![DrakeOS](drakelogo.png)
+<div align="center">
+<img src="drakelogo.png" alt="Logo" width="300"/>
+</div>
+
+---
 
 ## Features
 
