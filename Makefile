@@ -68,7 +68,7 @@ $(BUILD)/kernel/%.o: kernel/%.c
 
 $(BUILD)/kernel/%.o: kernel/%.asm
 	@mkdir -p $(@D)
-	$(NASM) $(NASMFLAGS) -MD $(@:.o=.d) -MP -I$(BUILD)/ -o $@ $<
+	$(NASM) $(NASMFLAGS) -MD $(@:.o=.d) -MP -I$(BUILD)/ -Iassets/ -o $@ $<
 
 # The initrd is embedded in the kernel image so both boot paths have it.
 $(BUILD)/kernel/fs/initrd_blob.o: $(INITRD)
