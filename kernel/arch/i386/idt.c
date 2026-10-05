@@ -77,7 +77,9 @@ static void handle_exception(registers_t *r)
     }
     kprintf("\n%s (vector %u)", exception_names[r->int_no], r->int_no);
     if (r->int_no == 14)
-        kprintf(" at address %08x", read_cr2());
+        kprintf(" at address %08x: %s, %s, %s mode", read_cr2(),
+                r->err_code & 1 ? "protection violation" : "page not present",
+                r->err_code & 2 ? "write" : "read", r->err_code & 4 ? "user" : "kernel");
     kprintf("\n");
     dump_registers(r);
     if ((r->cs & 3) == 3) {
