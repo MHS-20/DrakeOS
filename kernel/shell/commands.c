@@ -271,6 +271,12 @@ static void cmd_logo(int argc, char **argv)
     gfx_enter();
     for (int i = 0; i < 256; i++)
         gfx_set_palette(i, logo_data[i * 3], logo_data[i * 3 + 1], logo_data[i * 3 + 2]);
+    int darkest = 0;                          /* letterbox in the logo's darkest colour */
+    for (int i = 1; i < 256; i++)
+        if (logo_data[i * 3] + logo_data[i * 3 + 1] + logo_data[i * 3 + 2] <
+            logo_data[darkest * 3] + logo_data[darkest * 3 + 1] + logo_data[darkest * 3 + 2])
+            darkest = i;
+    gfx_fill_rect(0, 0, GFX_WIDTH, GFX_HEIGHT, darkest);
     const uint8_t *pixels = logo_data + 768;
     int ox = (GFX_WIDTH - LOGO_SIZE) / 2;
     for (int y = 0; y < LOGO_SIZE; y++)
@@ -306,6 +312,32 @@ static void draw_cursor(int x, int y, uint8_t color)
     gfx_draw_line(x, y - 3, x, y + 3, color);
 }
 
+static void canvas_dot(uint8_t *canvas, int x, int y, uint8_t color)
+{
+    for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++)
+            if (x + dx >= 0 && x + dx < GFX_WIDTH && y + dy >= 12 && y + dy < GFX_HEIGHT)
+                canvas[(y + dy) * GFX_WIDTH + x + dx] = color;
+}
+
+/* A 3-pixel-wide segment (Bresenham), so fast mouse moves still give a continuous stroke. */
+static void canvas_stroke(uint8_t *canvas, int x0, int y0, int x1, int y1, uint8_t color)
+{
+    int dx = x1 > x0 ? x1 - x0 : x0 - x1, sx = x0 < x1 ? 1 : -1;
+    int dy = y1 > y0 ? y0 - y1 : y1 - y0, sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy;
+    for (;;) {
+        canvas_dot(canvas, x0, y0, color);
+        if (x0 == x1 && y0 == y1)
+            break;
+        int e2 = 2 * err;
+        if (e2 >= dy)
+            err += dy, x0 += sx;
+        if (e2 <= dx)
+            err += dx, y0 += sy;
+    }
+}
+
 static void cmd_paint(int argc, char **argv)
 {
     (void)argc, (void)argv;
@@ -323,14 +355,9 @@ static void cmd_paint(int argc, char **argv)
         if (key == 'c')
             memset(canvas, 0, sizeof canvas);
         struct mouse_state m = mouse_get();
-        if (m.buttons & 1) {                   /* left button: draw */
-            for (int dy = -1; dy <= 1; dy++)
-                for (int dx = -1; dx <= 1; dx++) {
-                    int x = m.x + dx, y = m.y + dy;
-                    if (x >= 0 && x < GFX_WIDTH && y >= 12 && y < GFX_HEIGHT)
-                        canvas[y * GFX_WIDTH + x] = color;
-                }
-        }
+        if (m.buttons & 1)                     /* left button: draw, joining the samples */
+            canvas_stroke(canvas, (last.buttons & 1) ? last.x : m.x, (last.buttons & 1) ? last.y : m.y,
+                          m.x, m.y, color);
         if ((m.buttons & 2) && !(last.buttons & 2))   /* right click: next colour */
             for (unsigned i = 0; i < sizeof palette; i++)
                 if (palette[i] == color) {
@@ -343,7 +370,7 @@ static void cmd_paint(int argc, char **argv)
                 gfx_put_pixel(x, y, canvas[y * GFX_WIDTH + x]);
         gfx_fill_rect(0, 0, GFX_WIDTH, 12, 8);
         gfx_fill_rect(2, 2, 8, 8, color);
-        gfx_draw_text(14, -2, "paint: L draw, R colour, c clear, Esc quit", 15);
+        gfx_draw_text(14, -2, "L:draw R:colour c:clear Esc:quit", 15);
         draw_cursor(m.x, m.y, color == 15 ? 12 : 15);
         gfx_wait_vsync();
         gfx_present();
@@ -431,7 +458,10 @@ static void cmd_help(int argc, char **argv)
             kprintf("help: no command '%s'\n", argv[1]);
         return;
     }
-    for (unsigned i = 0; i < NCOMMANDS; i++)
-        kprintf("  %-9s %s\n", commands[i].name, commands[i].help);
+    for (unsigned i = 0; i < NCOMMANDS; i++)      /* two columns so the list fits on screen */
+        kprintf("%-9s %-29.29s%s", commands[i].name, commands[i].help, i % 2 ? "\n" : " ");
+    if (NCOMMANDS % 2)
+        kprintf("\n");
+    kprintf("'help COMMAND' shows the full description and usage.\n");
     kprintf("User programs live in / (try 'ls' then 'run hello').\n");
 }
